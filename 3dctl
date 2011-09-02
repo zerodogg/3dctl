@@ -78,18 +78,22 @@ function detectStatus
 {
 	WM="$1"
 	current="off"
-	if [ "$WM" == "kwin" ]; then
-		STATUS="`qdbus org.kde.kwin /KWin org.kde.KWin.compositingActive`"
-		if [ "$STATUS" == "true" ]; then
-			current="on"
-		fi
-	elif [ "$WM" == "metacity-compiz" ] || [ "$WM" == "xfwm4-compiz" ] || [ "$WM" == "compiz" ] || [ "$WM" == "kwin-compiz" ]; then
-		if compizRunning; then
-			current="on"
-		fi
-	else
-		current="unknown"
-	fi
+	case $WM in
+		kwin)
+			STATUS="`qdbus org.kde.kwin /KWin org.kde.KWin.compositingActive`"
+			if [ "$STATUS" == "true" ]; then
+				current="on"
+			fi
+			;;
+		*compiz)
+			if compizRunning; then
+				current="on"
+			fi
+			;;
+		*)
+			current="unknown"
+			;;
+	esac
 	echo "$current"
 }
 # Detects if compiz is running or not
