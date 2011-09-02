@@ -1,0 +1,236 @@
+#!/bin/bash
+# 3dctl - script to control the status of 3D/compositing window managers
+# Copyright (C) Eskild Hustvedt 2011
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+action="$1"
+status3d=""
+WM="unknown"
+VERSION="0.1"
+
+# Detects which WM is in use
+function detectWM
+{
+	wmtype="no3d"
+	# The following somewhat hacky code is used to support users using compiz
+	# along with KDE.
+	if [ -w "/dev/shm" ]; then
+		# We prefer /dev/shm if we can, as that is guaranteed to be deleted
+		# whenever the machine reboots
+		TMP="/dev/shm"
+	elif [ "$TMP" == "" ]; then
+		TMP="/tmp"
+	fi
+
+	# This file is used to keep track of compiz status. If we detect KDE with compiz
+	# we write this file, to make sure we start compiz when turning 3d back on
+	# rather than toggling kwin's effects on
+	#
+	# We write XDG_SESSION_COOKIE (if present) to this file as well, as an additional
+	# measure to ensure the 'kwin compiz' status gets reset on each boot
+	KWIN_COMPIZFILE="$TMP/.3dctl-kwin-compiz.$UID"
+
+	if [ -e "$KWIN_COMPIZFILE" ]; then
+		if [ "`cat "$KWIN_COMPIZFILE"`" == "$XDG_SESSION_COOKIE" ]; then
+			echo "kwin-compiz"
+			return
+		fi
+	fi
+
+	ROOTPROPS="$(xprop -root 2>/dev/null)"
+
+	if echo "$ROOTPROPS"|grep -q KWIN_RUNNING; then
+		wmtype="kwin"
+	elif echo "$ROOTPROPS"|grep -q METACITY || [ "$GNOME_DESKTOP_SESSION_ID" != "" ] || dbus-send --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.GetNameOwner string:org.gnome.SessionManager &>/dev/null ; then
+		if type compiz &>/dev/null; then
+			wmtype="metacity-compiz"
+		fi
+	elif echo "$ROOTPROPS" _DT_SAVE_MODE 2>/dev/null |grep -q xfce4; then
+		if type compiz &>/dev/null; then
+			wmtype="metacity-compiz"
+		fi
+	# Hack for kwin w/compiz
+	elif [ "$KDE_FULL_SESSION" == "true" ]; then
+		if type compiz &>/dev/null; then
+			wmtype="kwin-compiz"
+			echo "$XDG_SESSION_COOKIE" > "$KWIN_COMPIZFILE"
+			chmod 600 "$KWIN_COMPIZFILE"
+		fi
+	else
+		wmtype="unknown"
+	fi
+	echo "$wmtype"
+}
+# Detects the status of 3d effects (on or off)
+function detectStatus 
+{
+	WM="$1"
+	current="off"
+	if [ "$WM" == "kwin" ]; then
+		STATUS="`qdbus org.kde.kwin /KWin org.kde.KWin.compositingActive`"
+		if [ "$STATUS" == "true" ]; then
+			current="on"
+		fi
+	elif [ "$WM" == "metacity-compiz" ] || [ "$WM" == "xfwm4-compiz" ] || [ "$WM" == "compiz" ] || [ "$WM" == "kwin-compiz" ]; then
+		if compizRunning; then
+			current="on"
+		fi
+	else
+		current="unknown"
+	fi
+	echo "$current"
+}
+# Detects if compiz is running or not
+function compizRunning
+{
+	# If there are no compiz settings on the root window, compiz isn't running
+	if ! xprop -root 2>/dev/null|egrep -q '^_COMPIZ_WINDOW_DECOR_'; then
+		return 1
+	fi
+	# Since compiz doesn't remove its properties on exit, we use this hack
+	# to check if it's running
+	if ps -C compiz &>/dev/null && ps u |egrep -q ' compiz'; then
+		return 0
+	fi
+	return 1
+}
+
+# Toggles 3D effects for KDE
+function setKDE
+{
+	qdbus org.kde.kwin /KWin org.kde.KWin.toggleCompositing
+}
+# Toggles 3D effects for KDE with Compiz
+function setKDECompiz
+{
+	if [ "$status3d" == "on" ]; then
+		kwin --replace &
+	else
+		compiz --replace &
+	fi
+}
+# Toggles 3D effects for GNOME (metacity/compiz)
+function setGNOME
+{
+	if [ "$status3d" == "on" ]; then
+		metacity --replace &
+	else
+		compiz --replace &
+	fi
+}
+# Toggles 3D effects for XFce (xfwm4/compiz)
+function setXFCE
+{
+	if [ "$status3d" == "on" ]; then
+		xfwm4 --replace &
+	else
+		compiz --replace &
+	fi
+}
+
+# Runs the action corresponding to the detected WM or echoes and error and exits
+function performAction ()
+{
+	if [ "$1" != "" ]; then
+		action="$1"
+	fi
+	if [ "$action" == "unknown" ] && [ "$WM" != "no3d" ]; then
+		echo "3dctl: Failed to detect 3d status"
+		return 1
+	fi
+	if [ "$WM" == "kwin" ]; then
+		setKDE
+	elif [ "$WM" == "metacity-compiz" ]; then
+		setGNOME
+	elif [ "$WM" == "xfwm4-compiz" ]; then
+		setXFCE
+	elif [ "$WM" == "kwin-compiz" ]; then
+		setKDECompiz
+	elif [ "$WM" != "no3d" ]; then
+		echo "3dctl: Failed to detect window manager"
+		return 1
+	fi
+	return 0
+}
+
+WM="`detectWM`"
+status3d="`detectStatus "$WM"`"
+case $action in
+	on|off|toggle)
+		if [ "$action" == "$status3d" ]; then
+			exit 0
+		fi
+		performAction
+		exit $?;;
+	status)
+		echo "$status3d"
+		exit 0;;
+	info)
+		echo "WM detected as:     $WM"
+		echo "3D status detected: $status3d"
+		exit 0;;
+	run2d)
+		shift
+		# This variable is exported to allow children to know that they are running under
+		# 3dctl
+		export _RUNNING_UNDER_3DCTL="true"
+		if [ "$status3d" == "on" ]; then
+			performAction 'off'
+			"$@"
+			ret="$?"
+			performAction 'on'
+			exit $ret
+		else
+			exec "$@"
+			echo "Failed to exec: $@"
+			exit 2
+		fi;;
+	--version)
+		echo "3dctl version $VERSION"
+		exit 0 ;;
+	*)
+		echoHelp=0
+		base0=$(basename "$0")
+		ret=0
+		if [ "$action" == "-h" ] || [ "$action" == "--help" ]; then
+			echoHelp=1
+		fi
+		if [ "$echoHelp" != "1" ] && [ "$action" != "" ]; then
+			ret="1"
+			echo ""
+			echo "$action: unknown action"
+		fi
+		echo ""
+		echo "3dctl - script to control the status of 3d desktop effects"
+		echo "Usage: $base0 [ACTION]"
+		echo ""
+		echo "ACTION can be one of:"
+		echo "on        - Turns 3d effects on if they are off"
+		echo "off       - Turns 3d effects off if they are on"
+		echo "toggle    - Toggles the 3d status (on if off, off if on)"
+		echo ""
+		if [ "$echoHelp" == "1" ]; then
+			echo "run2d CMD - runs CMD with 3d effects disabled, re-enabling them afterwards if"
+			echo "             they were on. Everything after 'run2d' is considered a part of the"
+			echo "             command to run. 3dctl will exit with the return value from CMD."
+			echo "info      - Displays information about detected WM and 3D status"
+			echo "status    - Echo 3d status (on or off) and exit"
+			echo ""
+			echo "See also the manpage for additional information"
+		else
+			echo "See $base0 --help for additional actions"
+		fi
+		exit $ret;;
+esac

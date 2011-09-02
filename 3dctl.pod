@@ -1,0 +1,70 @@
+=head1 NAME
+
+3dctl - script to control the status of 3d desktop effects
+
+=head1 SYNOPSIS
+
+3dctl [ACTION]
+
+=head1 DESCRIPTION
+
+3dctl is a desktop-manager agnostic script to control the status of 3d desktop
+effects on Linux and other Unix-like operating systems. It lets you toggle
+them, retrieve status information and automatically turn them back on after
+a command completes.
+
+=head1 ACTIONS
+
+=over
+
+=item B<on|off|toggle>
+
+Turns desktop effects on or off (or toggles between them). If desktop effects
+are not availabe, this action does nothing.
+
+=item B<run2d> I<COMMAND>
+
+Runs I<COMMAND> with 3d effects disabled. It will disable 3d effects, run
+the command and then turn them back on again once the command exits, if
+they were on. Everything after run2d is treated as a part of the command.
+
+3dctl exports an environment variable, _RUNNING_UNDER_3DCTL="true", before
+executing the command. This can be used to test for 3dctl and execute it
+if needed. A method using a shell script might be:
+
+	(type 3dctl &>/dev/null && [ "$_RUNNING_UNDER_3DCTL" != "true" ]) && exec 3dctl run2d "$0" "$@"
+
+This will check if 3dctl is present, and if it is, and we are not already running
+under it, execute ourselves under 3dctl run2d.
+
+=item B<info>
+
+Outputs some basic information about what kind of environment 3dctl has detected.
+Will list the current 3d status and the WM detected.
+
+=item B<status>
+
+Will echo either on, off or unknown, depending on the 3d effect status.
+
+=item B<-h, --help>
+
+Outputs a simple help screen.
+
+=item B<--version>
+
+Outputs the 3dctl version.
+
+=back
+
+=head1 HELP/SUPPORT
+
+If you need additional help, please visit the website at
+L<http://random.zerodogg.org/3dctl>
+
+=head1 BUGS AND LIMITATIONS
+
+If you find a bug, please report it at L<http://random.zerodogg.org/3dctl/bugs>
+
+=head1 AUTHOR
+
+B<3dctl> is written by Eskild Hustvedt I<<code aatt zerodogg d0t org>>

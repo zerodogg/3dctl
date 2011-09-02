@@ -1,0 +1,6 @@
+Installation instructions for 3dctl
+---------------------------------------
+
+In order to install 3dctl simply run the command "make install" (without
+the quotes) in the 3dctl directory. You can do this as your user to install
+it locally for a single user, or as root to install it globally for all users.

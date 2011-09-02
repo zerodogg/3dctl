@@ -1,0 +1,4 @@
+- Support more WMs
+- Ensure compositing is off in the '2d' wm as well (ie. in the case of
+	kwin+compiz, where kwin might have effects enabled as well)
+- Improve kwin+compiz support, kwin may lose dbus access when enabled
