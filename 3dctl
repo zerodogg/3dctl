@@ -117,7 +117,7 @@ function setKDECompiz
 # Toggles 3D effects for GNOME (metacity/compiz)
 function setGNOME
 {
-	_setCopmiz 'metacity'
+	_setCompiz 'metacity'
 }
 # Toggles 3D effects for XFce (xfwm4/compiz)
 function setXFCE
