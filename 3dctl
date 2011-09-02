@@ -23,8 +23,9 @@ VERSION="0.1"
 # Detects which WM is in use
 function detectWM
 {
-	wmtype="no3d"
+	wmtype="unknown"
 	ROOTPROPS="$(xprop -root 2>/dev/null)"
+	compiz=0
 
 	if echo "$ROOTPROPS"|grep -q KWIN_RUNNING || [ "$KDE_FULL_SESSION" != "" ]; then
 		if echo "$ROOTPROPS"|egrep -q '^_COMPIZ_WINDOW_DECOR_' && type compiz &>/dev/null; then
@@ -33,15 +34,18 @@ function detectWM
 			wmtype="kwin"
 		fi
 	elif echo "$ROOTPROPS"|grep -q METACITY || [ "$GNOME_DESKTOP_SESSION_ID" != "" ] || dbus-send --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.GetNameOwner string:org.gnome.SessionManager &>/dev/null ; then
+		wmtype="metacity"
+		compiz=1
+	elif echo "$ROOTPROPS" |grep _DT_SAVE_MODE 2>/dev/null |grep -q xfce4; then
+		wmtype="xfwm4"
+		compiz=1
+	fi
+	if [ "$compiz" == "1" ]; then
 		if type compiz &>/dev/null; then
-			wmtype="metacity-compiz"
+			wmtype="$wmtype-compiz"
+		else
+			wmtype="no3d"
 		fi
-	elif echo "$ROOTPROPS" _DT_SAVE_MODE 2>/dev/null |grep -q xfce4; then
-		if type compiz &>/dev/null; then
-			wmtype="metacity-compiz"
-		fi
-	else
-		wmtype="unknown"
 	fi
 	echo "$wmtype"
 }
