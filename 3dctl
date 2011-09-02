@@ -101,6 +101,13 @@ function _setCompiz
 # Toggles 3D effects for KDE with Compiz
 function setKDECompiz
 {
+	# Turn off kwin effects if enabled
+	if [ "$status3d" == "on" ]; then
+		if [ "`detectStatus 'kwin'`" == "on" ]; then
+			setKDE
+		fi
+	fi
+
 	_setCompiz 'kwin'
 }
 # Toggles 3D effects for GNOME (metacity/compiz)
