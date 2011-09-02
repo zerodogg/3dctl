@@ -24,35 +24,14 @@ VERSION="0.1"
 function detectWM
 {
 	wmtype="no3d"
-	# The following somewhat hacky code is used to support users using compiz
-	# along with KDE.
-	if [ -w "/dev/shm" ]; then
-		# We prefer /dev/shm if we can, as that is guaranteed to be deleted
-		# whenever the machine reboots
-		TMP="/dev/shm"
-	elif [ "$TMP" == "" ]; then
-		TMP="/tmp"
-	fi
-
-	# This file is used to keep track of compiz status. If we detect KDE with compiz
-	# we write this file, to make sure we start compiz when turning 3d back on
-	# rather than toggling kwin's effects on
-	#
-	# We write XDG_SESSION_COOKIE (if present) to this file as well, as an additional
-	# measure to ensure the 'kwin compiz' status gets reset on each boot
-	KWIN_COMPIZFILE="$TMP/.3dctl-kwin-compiz.$UID"
-
-	if [ -e "$KWIN_COMPIZFILE" ]; then
-		if [ "`cat "$KWIN_COMPIZFILE"`" == "$XDG_SESSION_COOKIE" ]; then
-			echo "kwin-compiz"
-			return
-		fi
-	fi
-
 	ROOTPROPS="$(xprop -root 2>/dev/null)"
 
-	if echo "$ROOTPROPS"|grep -q KWIN_RUNNING; then
-		wmtype="kwin"
+	if echo "$ROOTPROPS"|grep -q KWIN_RUNNING || [ "$KDE_FULL_SESSION" != "" ]; then
+		if echo "$ROOTPROPS"|egrep -q '^_COMPIZ_WINDOW_DECOR_' && type compiz &>/dev/null; then
+			wmtype="kwin-compiz"
+		else
+			wmtype="kwin"
+		fi
 	elif echo "$ROOTPROPS"|grep -q METACITY || [ "$GNOME_DESKTOP_SESSION_ID" != "" ] || dbus-send --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.GetNameOwner string:org.gnome.SessionManager &>/dev/null ; then
 		if type compiz &>/dev/null; then
 			wmtype="metacity-compiz"
@@ -60,13 +39,6 @@ function detectWM
 	elif echo "$ROOTPROPS" _DT_SAVE_MODE 2>/dev/null |grep -q xfce4; then
 		if type compiz &>/dev/null; then
 			wmtype="metacity-compiz"
-		fi
-	# Hack for kwin w/compiz
-	elif [ "$KDE_FULL_SESSION" == "true" ]; then
-		if type compiz &>/dev/null; then
-			wmtype="kwin-compiz"
-			echo "$XDG_SESSION_COOKIE" > "$KWIN_COMPIZFILE"
-			chmod 600 "$KWIN_COMPIZFILE"
 		fi
 	else
 		wmtype="unknown"
