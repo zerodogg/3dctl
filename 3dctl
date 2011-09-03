@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 action="$1"
-status3d=""
+status3d="unknown"
 WM="unknown"
 VERSION="0.1"
 
@@ -86,6 +86,12 @@ function compizRunning
 	fi
 	return 1
 }
+# Runs WM and 3d status detection
+function initStatus
+{
+	WM="`detectWM`"
+	status3d="`detectStatus "$WM"`"
+}
 
 # Toggles 3D effects for KDE
 function setKDE
@@ -131,6 +137,9 @@ function performAction ()
 	if [ "$1" != "" ]; then
 		action="$1"
 	fi
+	if [ "$action" == "$status3d" ]; then
+		return 0
+	fi
 	if [ "$action" == "unknown" ] && [ "$WM" != "no3d" ]; then
 		echo "3dctl: Failed to detect 3d status"
 		return 1
@@ -150,13 +159,9 @@ function performAction ()
 	return 0
 }
 
-WM="`detectWM`"
-status3d="`detectStatus "$WM"`"
+initStatus
 case $action in
 	on|off|toggle)
-		if [ "$action" == "$status3d" ]; then
-			exit 0
-		fi
 		performAction
 		exit $?;;
 	status)
@@ -171,13 +176,17 @@ case $action in
 		# This variable is exported to allow children to know that they are running under
 		# 3dctl
 		export _RUNNING_UNDER_3DCTL="true"
+		# If 3d is on, turn it off for the duration of the command
 		if [ "$status3d" == "on" ]; then
 			performAction 'off'
 			"$@"
 			ret="$?"
+			# Re-fetch status, in case it has changed while we were running the command
+			initStatus
 			performAction 'on'
 			exit $ret
 		else
+			# If 3d is already off, then there's nothing for us to do, so we just exec it
 			exec "$@"
 			echo "Failed to exec: $@"
 			exit 2
