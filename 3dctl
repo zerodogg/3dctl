@@ -56,7 +56,7 @@ function detectStatus
 	current="off"
 	case $WM in
 		kwin)
-			STATUS="`qdbus org.kde.kwin /KWin org.kde.KWin.compositingActive`"
+			STATUS="`qdbus org.kde.kwin /KWin org.kde.KWin.compositingActive 2> /dev/null`"
 			if [ "$STATUS" == "true" ]; then
 				current="on"
 			fi
@@ -81,7 +81,7 @@ function compizRunning
 	fi
 	# Since compiz doesn't remove its properties on exit, we use this hack
 	# to check if it's running
-	if ps -C compiz &>/dev/null && ps u |egrep -q ' compiz'; then
+	if ps -C compiz &>/dev/null && ps u |grep -q ' compiz'; then
 		return 0
 	fi
 	return 1
