@@ -92,6 +92,11 @@ function initStatus
 	WM="`detectWM`"
 	status3d="`detectStatus "$WM"`"
 }
+# Echoes a string if VERBOSE_3DCTL=1
+function vecho
+{
+	[ "$VERBOSE_3DCTL" ] && echo "3dctl: $action: $@"
+}
 
 # Toggles 3D effects for KDE
 function setKDE
@@ -171,21 +176,32 @@ case $action in
 		echo "WM detected as:     $WM"
 		echo "3D status detected: $status3d"
 		exit 0;;
-	run2d)
+	run2d|srun2d)
 		shift
 		# This variable is exported to allow children to know that they are running under
 		# 3dctl
 		export _RUNNING_UNDER_3DCTL="true"
 		# If 3d is on, turn it off for the duration of the command
 		if [ "$status3d" == "on" ]; then
+			vecho "turning 3d off"
 			performAction 'off'
+
+			vecho "executing command"
 			"$@"
 			ret="$?"
+
+			if [ "$action" == "srun2d" ] && [ "$SECONDS" -lt 15 ]; then
+				echo "$action: command exited after less than 15 seconds - not turning"
+				echo "            3D effects back on"
+				exit $ret
+			fi
 			# Re-fetch status, in case it has changed while we were running the command
 			initStatus
+			vecho "command finished, turning 3d back on if needed"
 			performAction 'on'
 			exit $ret
 		else
+			vecho "3d is not on, just exec-ing the command"
 			# If 3d is already off, then there's nothing for us to do, so we just exec it
 			exec "$@"
 			echo "Failed to exec: $@"
@@ -219,6 +235,9 @@ case $action in
 			echo "run2d CMD - runs CMD with 3d effects disabled, re-enabling them afterwards if"
 			echo "             they were on. Everything after 'run2d' is considered a part of the"
 			echo "             command to run. 3dctl will exit with the return value from CMD."
+			echo "srun2d CMD - Same as run2d, except that if CMD exits in less than 15"
+			echo "              seconds, it will not turn 3D back on. Useful for when"
+			echo "              CMD may fork into the background"
 			echo "info      - Displays information about detected WM and 3D status"
 			echo "status    - Echo 3d status (on or off) and exit"
 			echo ""

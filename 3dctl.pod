@@ -37,6 +37,18 @@ if needed. A method using a shell script might be:
 This will check if 3dctl is present, and if it is, and we are not already running
 under it, execute ourselves under 3dctl run2d.
 
+=item B<srun2d> I<COMMAND>
+
+This is a variant of I<run2d>, where if the command exits before a short period
+of time has passed (currently 15 seconds, but that may be adjusted in future
+versions), it will not start 3D effects again. This is useful for cases where
+command may fork into the background.
+
+Other than that, it is identical to run2d (it will set _RUNNING_UNDER_3DCTL etc.).
+So the modified run2d shell script snippet will work:
+
+	(type 3dctl &>/dev/null && [ "$_RUNNING_UNDER_3DCTL" != "true" ]) && exec 3dctl srun2d "$0" "$@"
+
 =item B<info>
 
 Outputs some basic information about what kind of environment 3dctl has detected.
