@@ -76,12 +76,12 @@ function detectStatus
 function compizRunning
 {
 	# If there are no compiz settings on the root window, compiz isn't running
-	if ! xprop -root 2>/dev/null|egrep -q '^_COMPIZ_WINDOW_DECOR_'; then
+	if ! xprop -root 2>&1 |egrep -q '^_COMPIZ_WINDOW_DECOR_'; then
 		return 1
 	fi
 	# Since compiz doesn't remove its properties on exit, we use this hack
 	# to check if it's running
-	if ps -C compiz &>/dev/null && ps u |grep -q ' compiz'; then
+	if ps -C compiz &>/dev/null && ps -U $UID u |grep -q ' compiz'; then
 		return 0
 	fi
 	return 1
