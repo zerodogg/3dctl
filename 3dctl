@@ -176,6 +176,10 @@ case $action in
 		echo "WM detected as:     $WM"
 		echo "3D status detected: $status3d"
 		exit 0;;
+	sinfo)
+		echo "WM=$WM"
+		echo "STATUS=$status3d"
+		exit 0;;
 	run2d|srun2d)
 		shift
 		# This variable is exported to allow children to know that they are running under

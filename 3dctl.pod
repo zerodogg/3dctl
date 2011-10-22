@@ -52,7 +52,15 @@ So the modified run2d shell script snippet will work:
 =item B<info>
 
 Outputs some basic information about what kind of environment 3dctl has detected.
-Will list the current 3d status and the WM detected.
+Will list the current 3d status and the WM detected. This should not be
+used in scripts, as the output is subject to change. Use sinfo instead.
+
+=item B<sinfo>
+
+Outputs the same information as I<info>, but in a machine-readable format.
+This command is API stable, additional entries may be added, but the syntax
+of the entries will not change, so it is safe to rely upon its output in
+a script.
 
 =item B<status>
 
